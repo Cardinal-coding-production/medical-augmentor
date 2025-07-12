@@ -37,6 +37,8 @@ if uploaded_file:
 
 
     if st.button("Apply Augmentations"):
+        st.session_state['augment_count'] = st.session_state.get('augment_count', 0) + 1
+        print(f"[Analytics] Augmentation applied {st.session_state['augment_count']} times")
         aug_image = image.copy()
 
         if rotate_angle != 0:
@@ -57,16 +59,9 @@ if uploaded_file:
         st.success("✅ Augmentation applied successfully.")
 
         with st.spinner("Applying augmentations..."):
-    # image processing code here
-            ...
-        st.success("✅ Done!")
 
-
-
-
-
-        # --- Download Button ---
-        buf = BytesIO()
+    # --- Download Button ---
+         buf = BytesIO()
         aug_image.save(buf, format="PNG")
         byte_im = buf.getvalue()
 
@@ -76,3 +71,10 @@ if uploaded_file:
             file_name="augmented_image.png",
             mime="image/png"
         )
+
+        with st.expander("🗣️ Give Feedback"):
+         st.markdown(
+        "[Fill out our feedback form here](https://forms.gle/4YgG1EkKYzi7jiWH6)",
+        unsafe_allow_html=True
+    )
+
