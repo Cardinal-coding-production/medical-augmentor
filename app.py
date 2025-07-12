@@ -3,6 +3,8 @@ from PIL import Image
 from io import BytesIO
 from augmentations import basic
 from utils.ui_elements import get_augmentation_controls
+import io
+from datetime import datetime
 
 
 st.set_page_config(page_title="Medical Image Augmentor", layout="centered")
@@ -61,9 +63,11 @@ if uploaded_file:
         with st.spinner("Applying augmentations..."):
 
     # --- Download Button ---
-         buf = BytesIO()
+         buf = io.BytesIO()
         aug_image.save(buf, format="PNG")
         byte_im = buf.getvalue()
+
+        file_name = f"aug_image_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.png"
 
         st.download_button(
             label="📥 Download Augmented Image",
