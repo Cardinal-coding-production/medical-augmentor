@@ -5,6 +5,12 @@ from augmentations import basic
 from utils.ui_elements import get_augmentation_controls
 import io
 from datetime import datetime
+import zipfile
+import pandas as pd
+from suggestions import get_suggestions
+from logger import log_augmentation
+
+
 
 
 st.set_page_config(page_title="Medical Image Augmentor", layout="centered")
@@ -16,7 +22,7 @@ with st.sidebar:
     2. **Select augmentations** from the panel.
     3. Click **Apply** to view results.
     4. Click **Download** to save the augmented image.
-    
+
     ⚠️ *Avoid excessive noise or rotation on small images.*
     """)
 
@@ -25,60 +31,103 @@ st.title("🧠 Medical Image Augmentor")
 st.markdown("Upload your medical image and apply safe augmentations.")
 
 # --- File Upload ---
-uploaded_file = st.file_uploader("Upload PNG or JPG image", type=["png", "jpg", "jpeg"])
+uploaded_files = st.file_uploader(
+   "Upload PNG or JPG image",
+   type=["png", "jpg", "jpeg"],
+   accept_multiple_files=True)
 
-if uploaded_file:
-    image = Image.open(uploaded_file).convert("RGB")
-    st.image(image, caption="Original Image", use_container_width=True)
+st.markdown("### Select Augmentations")
+mode = st.radio("Choose Mode:", ["Custom", "Power"])
+if mode == "Power":
+    st.info("🚀 Power Mode applies a random combination of augmentations. Upload multiple images to see diverse results!")
 
-
-    st.markdown("### Select Augmentations")
 
     # --- Augmentation Inputs ---
-    rotate_angle, flip_h, flip_v, brightness, contrast, noise_std = get_augmentation_controls()
+rotate_angle, flip_h, flip_v, brightness, contrast, noise_std = get_augmentation_controls()
 
 
-    if st.button("Apply Augmentations"):
-        st.session_state['augment_count'] = st.session_state.get('augment_count', 0) + 1
-        print(f"[Analytics] Augmentation applied {st.session_state['augment_count']} times")
-        aug_image = image.copy()
+augmented_images = []
 
-        if rotate_angle != 0:
-            aug_image = basic.rotate_image(aug_image, rotate_angle)
-        if flip_h:
-            aug_image = basic.flip_horizontal(aug_image)
-        if flip_v:
-            aug_image = basic.flip_vertical(aug_image)
-        if brightness != 1.0:
-            aug_image = basic.adjust_brightness(aug_image, brightness)
-        if contrast != 1.0:
-            aug_image = basic.adjust_contrast(aug_image, contrast)
-        if noise_std > 0.0:
-            aug_image = basic.add_gaussian_noise(aug_image, noise_std)
+if 'augment_count' not in st.session_state:
+    st.session_state['augment_count'] = 0
 
-        st.image(aug_image, caption="Augmented Image", use_container_width=True)
 
-        st.success("✅ Augmentation applied successfully.")
+if uploaded_files and st.button("Apply Augmentations"):
+    st.session_state['augment_count'] += 1
+    log_augmentation(rotate_angle, flip_h, flip_v, brightness, contrast, noise_std)
 
-        with st.spinner("Applying augmentations..."):
+    for uploaded_file in uploaded_files:
+        image = Image.open(uploaded_file).convert("RGB")
+        st.image(image, caption="Original Image", use_container_width=True)
+
+        if mode == "Power (Random Strong Augmentations)":
+            aug_image = basic.random_augmentations(image)
+        else:
+
+            aug_image = basic.apply_augmentations(
+            image,
+            rotate_angle=rotate_angle,
+            flip_h=flip_h,
+            flip_v=flip_v,
+            brightness=brightness,
+            contrast=contrast,
+            noise_std=noise_std
+    )
+
+        augmented_images.append((uploaded_file.name, aug_image))
+        st.image(aug_image, caption=f"Augmented - {uploaded_file.name}", use_container_width=True)
+
+    image = Image.open(uploaded_file).convert("RGB")
+
+    st.success("✅ Augmentation applied successfully.")
+
+    suggestions = get_suggestions(rotate_angle, flip_h, flip_v, brightness, contrast, noise_std)
+
+with st.expander("💡 Smart Suggestions"):
+    suggestions = get_suggestions(rotate_angle, flip_h, flip_v, brightness, contrast, noise_std)
+    st.sidebar.markdown("### 💡 Suggestions")
+    st.sidebar.write(suggestions)
+    for tip in suggestions:
+        st.sidebar.write("- " + tip)
+
+
+
+    with st.spinner("Applying augmentations..."):
+
 
     # --- Download Button ---
-         buf = io.BytesIO()
-        aug_image.save(buf, format="PNG")
-        byte_im = buf.getvalue()
+            if augmented_images:
+                zip_buffer = io.BytesIO()
+                with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED) as zip_file:
+                    for filename, image in augmented_images:
+                        img_buffer = io.BytesIO()
+                        image.save(img_buffer, format="PNG")
+                        zip_file.writestr(f"aug_{filename}", img_buffer.getvalue())
+                zip_buffer.seek(0)
 
-        file_name = f"aug_image_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.png"
+                file_name = f"aug_image_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.png"
 
-        st.download_button(
-            label="📥 Download Augmented Image",
-            data=byte_im,
-            file_name="augmented_image.png",
-            mime="image/png"
-        )
+                st.download_button(
+                    label="📦 Download All Augmented Images (ZIP)",
+                    data=zip_buffer,
+                    file_name="augmented_images.zip",
+                    mime="application/zip"
+                )
 
-        with st.expander("🗣️ Give Feedback"):
+    with st.expander("🗣️ Give Feedback"):
          st.markdown(
         "[Fill out our feedback form here](https://forms.gle/4YgG1EkKYzi7jiWH6)",
         unsafe_allow_html=True
     )
+
+    with st.sidebar:
+        st.markdown("### 📊 Analytics")
+    try:
+        sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQXG_NBp7YYJQIp4cJSpyofLS3V_GJSJUEXt1aqZ16HU6Wz9uzF1lcW54rWgCWW_RKDeH5pdFaxBUjU/pub?output=csv/export?format=csv"
+        df = pd.read_csv(sheet_url)
+        st.dataframe(df.tail(5))  # Show latest 5 feedbacks
+    except Exception as e:
+        st.error(f"Failed to load feedback data: {e}")
+        st.metric(label="Total Augmentations", value=st.session_state['augment_count'])
+
 
