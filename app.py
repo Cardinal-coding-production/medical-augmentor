@@ -9,6 +9,7 @@ import zipfile
 import pandas as pd
 from suggestions import get_suggestions
 from logger import log_augmentation
+from augmentations.basic import random_augmentations
 
 
 
@@ -26,9 +27,22 @@ with st.sidebar:
     ⚠️ *Avoid excessive noise or rotation on small images.*
     """)
 
+st.image("assets/logo.png", width=150)
+st.title("🧠 Cardinal MedAug - Medical Image Augmentor")
+st.markdown("""
+Welcome to **Cardinal MedAug** — a free tool to safely augment medical images for use in research and AI training.
 
-st.title("🧠 Medical Image Augmentor")
-st.markdown("Upload your medical image and apply safe augmentations.")
+Upload your medical images, preview your augmentations in real-time, and download the enhanced dataset in one click.
+
+---
+
+**Why use this?**
+- Quick augmentation for training datasets
+- No coding required
+- Built for researchers, data scientists, and medical imaging teams
+
+---
+""")
 
 # --- File Upload ---
 uploaded_files = st.file_uploader(
