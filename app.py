@@ -28,7 +28,7 @@ with st.sidebar:
     """)
 
 st.image("assets/logo.jpg", width=150)
-st.title("🧠 Cardinal MedAug - Medical Image Augmentor")
+st.title("🧠 Cardinal MedAug")
 st.markdown("""
 Welcome to **Cardinal MedAug** — a free tool to safely augment medical images for use in research and AI training.
 
