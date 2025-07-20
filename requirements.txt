@@ -1,3 +1,7 @@
 streamlit
 pillow
+opencv-python
+sqlalchemy
+pandas
 numpy
+

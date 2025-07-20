@@ -1,147 +1,196 @@
 import streamlit as st
+import os
+import io
+import zipfile
+import uuid
 from PIL import Image
-from io import BytesIO
+from datetime import datetime
+import pandas as pd
 from augmentations import basic
 from utils.ui_elements import get_augmentation_controls
-import io
-from datetime import datetime
-import zipfile
-import pandas as pd
 from suggestions import get_suggestions
 from logger import log_augmentation
-from augmentations.basic import random_augmentations
+from database.models import SyntheticImage
+from database.db_init import SessionLocal
+from generator.procedural.generator import generate_procedural_images
+from generator.gan.gan_generator import generate_gan_images
+from database.db_init import save_to_database, SessionLocal
 
 
 
+SAVE_DIR = "data/synthetic"
+os.makedirs(SAVE_DIR, exist_ok=True)
 
 st.set_page_config(page_title="Medical Image Augmentor", layout="centered")
 
-with st.sidebar:
-    st.header("ℹ️ How to Use")
-    st.markdown("""
-    1. **Upload** a medical image (PNG or JPG).
-    2. **Select augmentations** from the panel.
-    3. Click **Apply** to view results.
-    4. Click **Download** to save the augmented image.
-
-    ⚠️ *Avoid excessive noise or rotation on small images.*
-    """)
-
-st.image("assets/logo.jpg", width=150)
-st.title("🧠 Cardinal MedAug")
-st.markdown("""
-Welcome to **Cardinal MedAug** — a free tool to safely augment medical images for use in research and AI training.
-
-Upload your medical images, preview your augmentations in real-time, and download the enhanced dataset in one click.
-
----
-
-**Why use this?**
-- Quick augmentation for training datasets
-- No coding required
-- Built for researchers, data scientists, and medical imaging teams
-
----
-""")
-
-# --- File Upload ---
-uploaded_files = st.file_uploader(
-   "Upload PNG or JPG image",
-   type=["png", "jpg", "jpeg"],
-   accept_multiple_files=True)
-
-st.markdown("### Select Augmentations")
-mode = st.radio("Choose Mode:", ["Custom", "Power"])
-if mode == "Power":
-    st.info("🚀 Power Mode applies a random combination of augmentations. Upload multiple images to see diverse results!")
-
-
-    # --- Augmentation Inputs ---
-rotate_angle, flip_h, flip_v, brightness, contrast, noise_std = get_augmentation_controls()
-
-
-augmented_images = []
-
+# --- Ensure augment_count is always initialized ---
 if 'augment_count' not in st.session_state:
     st.session_state['augment_count'] = 0
 
 
-if uploaded_files and st.button("Apply Augmentations"):
-    st.session_state['augment_count'] += 1
-    log_augmentation(rotate_angle, flip_h, flip_v, brightness, contrast, noise_std)
+with st.sidebar:
+    st.header("ℹ️ How to Use")
+    st.markdown("""
+    1. Choose a mode below.
+    2. Upload image(s) or click generate.
+    3. Preview results and download outputs.
+    """)
 
-    for uploaded_file in uploaded_files:
-        image = Image.open(uploaded_file).convert("RGB")
-        st.image(image, caption="Original Image", use_container_width=True)
+st.image("assets/logo.jpg", width=150)
+st.title("🧠 Cardinal MedAug")
 
-        if mode == "Power (Random Strong Augmentations)":
-            aug_image = basic.random_augmentations(image)
-        else:
+# -------------------------
+# 🔄 Mode Switch UI
+# -------------------------
+mode = st.radio("Choose Mode", ["Procedural Generator", "AI Generator", "Image Augmentation"])
 
-            aug_image = basic.apply_augmentations(
-            image,
-            rotate_angle=rotate_angle,
-            flip_h=flip_h,
-            flip_v=flip_v,
-            brightness=brightness,
-            contrast=contrast,
-            noise_std=noise_std
-    )
+session = SessionLocal()
 
-        augmented_images.append((uploaded_file.name, aug_image))
-        st.image(aug_image, caption=f"Augmented - {uploaded_file.name}", use_container_width=True)
+# -------------------------
+# 🔬 Procedural Generator
+# -------------------------
+if mode == "Procedural Generator":
+    st.subheader("🧬 Generate Synthetic Medical Images")
+    num_images = st.slider("Number of images to generate", 1, 10, 3)
 
-    image = Image.open(uploaded_file).convert("RGB")
+    if st.button("🚀 Generate Images"):
+        image_paths = generate_procedural_images(n=num_images)
 
-    st.success("✅ Augmentation applied successfully.")
+        for path in image_paths:
+            st.image(path, use_container_width=True)
 
-    suggestions = get_suggestions(rotate_angle, flip_h, flip_v, brightness, contrast, noise_std)
+            filename = os.path.basename(path)
+            new_entry = SyntheticImage(
+                id=str(uuid.uuid4()),
+                filename=filename,
+                generator_type="procedural",
+                resolution="256x256",
+                notes="synthetic lung blob",
+                created_at=datetime.now()
+            )
+            session.add(new_entry)
+        session.commit()
+        st.success(f"✅ Generated and saved {num_images} synthetic images.")
 
-with st.expander("💡 Smart Suggestions"):
-    suggestions = get_suggestions(rotate_angle, flip_h, flip_v, brightness, contrast, noise_std)
-    st.sidebar.markdown("### 💡 Suggestions")
-    st.sidebar.write(suggestions)
-    for tip in suggestions:
-        st.sidebar.write("- " + tip)
+# -------------------------
+# 🧪 Image Augmentation
+# -------------------------
+elif mode == "Image Augmentation":
+    uploaded_files = st.file_uploader(
+       "Upload PNG or JPG image",
+       type=["png", "jpg", "jpeg"],
+       accept_multiple_files=True)
 
+    st.markdown("### Select Augmentations")
+    aug_mode = st.radio("Choose Augmentation Mode:", ["Custom", "Power"])
+    if aug_mode == "Power":
+        st.info("🚀 Power Mode applies a random combination of augmentations.")
 
+    rotate_angle, flip_h, flip_v, brightness, contrast, noise_std = get_augmentation_controls()
 
-    with st.spinner("Applying augmentations..."):
+    augmented_images = []
 
+    if uploaded_files and st.button("Apply Augmentations"):
+        st.session_state['augment_count'] += 1
+        log_augmentation(rotate_angle, flip_h, flip_v, brightness, contrast, noise_std)
 
-    # --- Download Button ---
-            if augmented_images:
-                zip_buffer = io.BytesIO()
-                with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED) as zip_file:
-                    for filename, image in augmented_images:
-                        img_buffer = io.BytesIO()
-                        image.save(img_buffer, format="PNG")
-                        zip_file.writestr(f"aug_{filename}", img_buffer.getvalue())
-                zip_buffer.seek(0)
+        for uploaded_file in uploaded_files:
+            image = Image.open(uploaded_file).convert("RGB")
+            st.image(image, caption="Original Image", use_container_width=True)
 
-                file_name = f"aug_image_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.png"
-
-                st.download_button(
-                    label="📦 Download All Augmented Images (ZIP)",
-                    data=zip_buffer,
-                    file_name="augmented_images.zip",
-                    mime="application/zip"
+            if aug_mode == "Power":
+                aug_image = basic.random_augmentations(image)
+            else:
+                aug_image = basic.apply_augmentations(
+                    image,
+                    rotate_angle=rotate_angle,
+                    flip_h=flip_h,
+                    flip_v=flip_v,
+                    brightness=brightness,
+                    contrast=contrast,
+                    noise_std=noise_std
                 )
 
-    with st.expander("🗣️ Give Feedback"):
-         st.markdown(
-        "[Fill out our feedback form here](https://forms.gle/4YgG1EkKYzi7jiWH6)",
-        unsafe_allow_html=True
-    )
+            filename = f"augmented_{datetime.now().strftime('%Y%m%d_%H%M%S%f')}.png"
+            save_path = os.path.join(SAVE_DIR, filename)
+            aug_image.save(save_path)
+            augmented_images.append((uploaded_file.name, aug_image))
+            st.image(aug_image, caption=f"Augmented - {uploaded_file.name}", use_container_width=True)
 
-    with st.sidebar:
-        st.markdown("### 📊 Analytics")
+            entry = SyntheticImage(
+                id=str(uuid.uuid4()),
+                filename=filename,
+                generator_type="augmentation",
+                resolution=f"{aug_image.width}x{aug_image.height}",
+                notes="user uploaded augmentation",
+                created_at=datetime.now()
+            )
+            session.add(entry)
+
+        session.commit()
+        st.success("✅ Augmentation applied and saved.")
+
+        suggestions = get_suggestions(rotate_angle, flip_h, flip_v, brightness, contrast, noise_std)
+        with st.expander("💡 Smart Suggestions"):
+            for tip in suggestions:
+                st.write("- " + tip)
+
+        if augmented_images:
+            zip_buffer = io.BytesIO()
+            with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED) as zip_file:
+                for filename, image in augmented_images:
+                    img_buffer = io.BytesIO()
+                    image.save(img_buffer, format="PNG")
+                    zip_file.writestr(f"aug_{filename}", img_buffer.getvalue())
+            zip_buffer.seek(0)
+
+            st.download_button(
+                label="📦 Download All Augmented Images (ZIP)",
+                data=zip_buffer,
+                file_name="augmented_images.zip",
+                mime="application/zip"
+            )
+
+# -------------------------
+# 🖼 Show Recent Images
+# -------------------------
+st.subheader("🖼 Recently Generated or Augmented Images")
+recent = session.query(SyntheticImage).order_by(SyntheticImage.created_at.desc()).limit(5).all()
+for r in recent:
+    image_path = os.path.join(SAVE_DIR, r.filename)
+    if os.path.exists(image_path):
+        st.image(image_path, caption=f"{r.generator_type.capitalize()} @ {r.created_at.strftime('%Y-%m-%d %H:%M')}", use_container_width=True)
+
+# -------------------------
+# Feedback + Analytics
+# -------------------------
+with st.expander("🗣️ Give Feedback"):
+    st.markdown("[Fill out our feedback form here](https://forms.gle/4YgG1EkKYzi7jiWH6)", unsafe_allow_html=True)
+
+with st.sidebar:
+    st.markdown("### 📊 Analytics")
     try:
-        sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQXG_NBp7YYJQIp4cJSpyofLS3V_GJSJUEXt1aqZ16HU6Wz9uzF1lcW54rWgCWW_RKDeH5pdFaxBUjU/pub?output=csv/export?format=csv"
+        sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRHXpKAMaLKLSGiK35cvfVpm_6Me_sN5ErzygL-xcMLH5zfhKg0JPb-VZv_PNXR9dA_vt0dQgXbgtxz/pub?output=csv"
         df = pd.read_csv(sheet_url)
-        st.dataframe(df.tail(5))  # Show latest 5 feedbacks
+        st.dataframe(df.tail(5))
     except Exception as e:
         st.error(f"Failed to load feedback data: {e}")
-        st.metric(label="Total Augmentations", value=st.session_state['augment_count'])
+        st.metric(label="Total Augmentations", value=st.session_state.get('augment_count', 0))
 
+if mode == "GAN Generator":
+    st.subheader("🧠 Generate GAN-based Synthetic Medical Images")
+    num_images = st.slider("Number of GAN images to generate", 1, 10, 1)
+
+    if st.button("🎨 Generate GAN Images"):
+        from generator.gan.gan_generator import generate_gan_images
+        generated = generate_gan_images(num_images)
+
+        for filename, image in generated:
+            st.image(image, caption=filename, use_column_width=True)
+            save_to_database(
+                filename=filename,
+                generator_type="GAN",
+                resolution=f"{image.size[0]}x{image.size[1]}",
+                notes="Generated using GAN"
+            )
 
