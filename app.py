@@ -19,6 +19,9 @@ SAVE_DIR = "data/synthetic"
 DB_PATH = os.path.join(SAVE_DIR, "synthetic_images.db")
 os.makedirs(SAVE_DIR, exist_ok=True)
 
+if not os.path.exists("data/synthetic/synthetic_images.db"):
+    init_db()
+
 st.set_page_config(page_title="Medical Image Augmentor", layout="centered")
 
 # --- Ensure augment_count is always initialized ---
