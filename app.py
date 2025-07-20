@@ -1,15 +1,15 @@
 import streamlit as st
-import os
-import io
 import traceback
-import zipfile
-import uuid
-from PIL import Image
-from datetime import datetime
-import pandas as pd
 
-# Safe startup wrapper
 try:
+    import os
+    import io
+    import zipfile
+    import uuid
+    from PIL import Image
+    from datetime import datetime
+    import pandas as pd
+
     from augmentations import basic
     from utils.ui_elements import get_augmentation_controls
     from suggestions import get_suggestions
@@ -20,21 +20,17 @@ try:
     from generator.gan.gan_generator import generate_gan_images
 
     SAVE_DIR = "data/synthetic"
-    DB_PATH = os.path.join(SAVE_DIR, "synthetic_images.db")
     os.makedirs(SAVE_DIR, exist_ok=True)
 
-    # Initialize database if not exists
-    if not os.path.exists(DB_PATH):
+    if not os.path.exists(os.path.join(SAVE_DIR, "synthetic_images.db")):
         init_db()
 
     st.set_page_config(page_title="Medical Image Augmentor", layout="centered")
 
-except Exception:
-    err = traceback.format_exc()
-    st.error("🚨 App failed during startup.")
-    st.code(err)
-    with open("startup_error.log", "w") as f:
-        f.write(err)
+except Exception as e:
+    st.title("🚨 App Startup Failed")
+    st.error("The app failed to start. Here's the traceback:")
+    st.exception(e)
     st.stop()
 
 # --- Ensure augment_count is always initialized ---
