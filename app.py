@@ -24,6 +24,13 @@ if not os.path.exists("data/synthetic/synthetic_images.db"):
 
 st.set_page_config(page_title="Medical Image Augmentor", layout="centered")
 
+try:
+    st.info("App starting...")
+    os.makedirs("data/synthetic", exist_ok=True)
+except Exception as e:
+    st.error("Startup failed")
+    st.text(traceback.format_exc())
+
 # --- Ensure augment_count is always initialized ---
 if 'augment_count' not in st.session_state:
     st.session_state['augment_count'] = 0
