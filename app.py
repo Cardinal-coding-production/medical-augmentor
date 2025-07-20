@@ -11,11 +11,12 @@ from utils.ui_elements import get_augmentation_controls
 from suggestions import get_suggestions
 from logger import log_augmentation
 from database.models import SyntheticImage
-from database.db_init import SessionLocal, save_to_database
+from database.db_init import SessionLocal, save_to_database, init_db
 from generator.procedural.generator import generate_procedural_images
 from generator.gan.gan_generator import generate_gan_images
 
 SAVE_DIR = "data/synthetic"
+DB_PATH = os.path.join(SAVE_DIR, "synthetic_images.db")
 os.makedirs(SAVE_DIR, exist_ok=True)
 
 st.set_page_config(page_title="Medical Image Augmentor", layout="centered")
@@ -41,10 +42,9 @@ st.title("🧠 Cardinal MedAug")
 mode = st.radio("Choose Mode", ["Procedural Generator", "AI Generator", "Image Augmentation"])
 
 # Check if DB exists to avoid crash on deployment
-if os.path.exists("data/synthetic/synthetic_images.db"):
-    session = SessionLocal()
-else:
-    session = None
+if not os.path.exists(DB_PATH):
+    init_db()
+session = SessionLocal()
 
 # -------------------------
 # 🔬 Procedural Generator
