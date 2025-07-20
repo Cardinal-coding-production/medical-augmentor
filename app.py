@@ -1,33 +1,33 @@
 import streamlit as st
 import os
 import io
+import traceback
 import zipfile
 import uuid
 from PIL import Image
 from datetime import datetime
 import pandas as pd
-from augmentations import basic
-from utils.ui_elements import get_augmentation_controls
-from suggestions import get_suggestions
-from logger import log_augmentation
-from database.models import SyntheticImage
-from database.db_init import SessionLocal, save_to_database, init_db
-from generator.procedural.generator import generate_procedural_images
-from generator.gan.gan_generator import generate_gan_images
-
-SAVE_DIR = "data/synthetic"
-DB_PATH = os.path.join(SAVE_DIR, "synthetic_images.db")
-os.makedirs(SAVE_DIR, exist_ok=True)
-
-if not os.path.exists("data/synthetic/synthetic_images.db"):
-    init_db()
-
-st.set_page_config(page_title="Medical Image Augmentor", layout="centered")
-
 try:
+    from augmentations import basic
+    from utils.ui_elements import get_augmentation_controls
+    from suggestions import get_suggestions
+    from logger import log_augmentation
+    from database.models import SyntheticImage
+    from database.db_init import SessionLocal, save_to_database, init_db
+    from generator.procedural.generator import generate_procedural_images
+    from generator.gan.gan_generator import generate_gan_images
+
+    SAVE_DIR = "data/synthetic"
+    DB_PATH = os.path.join(SAVE_DIR, "synthetic_images.db")
+    os.makedirs(SAVE_DIR, exist_ok=True)
+
+    if not os.path.exists("data/synthetic/synthetic_images.db"):
+        init_db()
+
+    st.set_page_config(page_title="Medical Image Augmentor", layout="centered")
+
+except:
     st.info("App starting...")
-    os.makedirs("data/synthetic", exist_ok=True)
-except Exception as e:
     st.error("Startup failed")
     st.text(traceback.format_exc())
 
