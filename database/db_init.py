@@ -8,6 +8,9 @@ from database.models import Base, SyntheticImage
 # Add project root to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+# Ensure DB directory exists
+os.makedirs("data/synthetic", exist_ok=True)
+
 # Database connection
 DATABASE_URL = "sqlite:///data/synthetic/synthetic_images.db"
 engine = create_engine(DATABASE_URL, echo=True)
