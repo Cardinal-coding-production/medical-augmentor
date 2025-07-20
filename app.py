@@ -7,6 +7,8 @@ import uuid
 from PIL import Image
 from datetime import datetime
 import pandas as pd
+
+# Safe startup wrapper
 try:
     from augmentations import basic
     from utils.ui_elements import get_augmentation_controls
@@ -21,15 +23,19 @@ try:
     DB_PATH = os.path.join(SAVE_DIR, "synthetic_images.db")
     os.makedirs(SAVE_DIR, exist_ok=True)
 
-    if not os.path.exists("data/synthetic/synthetic_images.db"):
+    # Initialize database if not exists
+    if not os.path.exists(DB_PATH):
         init_db()
 
     st.set_page_config(page_title="Medical Image Augmentor", layout="centered")
 
-except:
-    st.info("App starting...")
-    st.error("Startup failed")
-    st.text(traceback.format_exc())
+except Exception:
+    err = traceback.format_exc()
+    st.error("🚨 App failed during startup.")
+    st.code(err)
+    with open("startup_error.log", "w") as f:
+        f.write(err)
+    st.stop()
 
 # --- Ensure augment_count is always initialized ---
 if 'augment_count' not in st.session_state:
@@ -51,9 +57,7 @@ st.title("🧠 Cardinal MedAug")
 # -------------------------
 mode = st.radio("Choose Mode", ["Procedural Generator", "AI Generator", "Image Augmentation"])
 
-# Check if DB exists to avoid crash on deployment
-if not os.path.exists(DB_PATH):
-    init_db()
+# Session connection
 session = SessionLocal()
 
 # -------------------------
@@ -69,19 +73,17 @@ if mode == "Procedural Generator":
         for path in image_paths:
             st.image(path, use_container_width=True)
 
-            if session:
-                filename = os.path.basename(path)
-                new_entry = SyntheticImage(
-                    id=str(uuid.uuid4()),
-                    filename=filename,
-                    generator_type="procedural",
-                    resolution="256x256",
-                    notes="synthetic lung blob",
-                    created_at=datetime.now()
-                )
-                session.add(new_entry)
-        if session:
-            session.commit()
+            filename = os.path.basename(path)
+            new_entry = SyntheticImage(
+                id=str(uuid.uuid4()),
+                filename=filename,
+                generator_type="procedural",
+                resolution="256x256",
+                notes="synthetic lung blob",
+                created_at=datetime.now()
+            )
+            session.add(new_entry)
+        session.commit()
         st.success(f"✅ Generated and saved {num_images} synthetic images.")
 
 # -------------------------
@@ -129,19 +131,17 @@ elif mode == "Image Augmentation":
             augmented_images.append((uploaded_file.name, aug_image))
             st.image(aug_image, caption=f"Augmented - {uploaded_file.name}", use_container_width=True)
 
-            if session:
-                entry = SyntheticImage(
-                    id=str(uuid.uuid4()),
-                    filename=filename,
-                    generator_type="augmentation",
-                    resolution=f"{aug_image.width}x{aug_image.height}",
-                    notes="user uploaded augmentation",
-                    created_at=datetime.now()
-                )
-                session.add(entry)
+            entry = SyntheticImage(
+                id=str(uuid.uuid4()),
+                filename=filename,
+                generator_type="augmentation",
+                resolution=f"{aug_image.width}x{aug_image.height}",
+                notes="user uploaded augmentation",
+                created_at=datetime.now()
+            )
+            session.add(entry)
 
-        if session:
-            session.commit()
+        session.commit()
         st.success("✅ Augmentation applied and saved.")
 
         suggestions = get_suggestions(rotate_angle, flip_h, flip_v, brightness, contrast, noise_std)
@@ -188,14 +188,11 @@ elif mode == "AI Generator":
 # 🖼 Show Recent Images
 # -------------------------
 st.subheader("🖼 Recently Generated or Augmented Images")
-if session:
-    recent = session.query(SyntheticImage).order_by(SyntheticImage.created_at.desc()).limit(5).all()
-    for r in recent:
-        image_path = os.path.join(SAVE_DIR, r.filename)
-        if os.path.exists(image_path):
-            st.image(image_path, caption=f"{r.generator_type.capitalize()} @ {r.created_at.strftime('%Y-%m-%d %H:%M')}", use_container_width=True)
-else:
-    st.info("No recent images found. Please generate or augment images first.")
+recent = session.query(SyntheticImage).order_by(SyntheticImage.created_at.desc()).limit(5).all()
+for r in recent:
+    image_path = os.path.join(SAVE_DIR, r.filename)
+    if os.path.exists(image_path):
+        st.image(image_path, caption=f"{r.generator_type.capitalize()} @ {r.created_at.strftime('%Y-%m-%d %H:%M')}", use_container_width=True)
 
 # -------------------------
 # Feedback + Analytics
