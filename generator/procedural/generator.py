@@ -12,7 +12,7 @@ from database.db_init import SessionLocal
 from database.models import SyntheticImage
 
 # Directory to save generated images
-SAVE_DIR = "data/synthetic"
+SAVE_DIR = "/tmp/synthetic"
 os.makedirs(SAVE_DIR, exist_ok=True)
 
 def generate_lung_blob_image(image_size=(256, 256)):
@@ -39,6 +39,7 @@ def save_image_and_log(img: np.ndarray, generator_type: str = "procedural", reso
     filename = f"synthetic_{generator_type}_{timestamp}.png"
     filepath = os.path.join(SAVE_DIR, filename)
 
+
     cv2.imwrite(filepath, img)
 
     # Store metadata in DB
@@ -56,7 +57,7 @@ def save_image_and_log(img: np.ndarray, generator_type: str = "procedural", reso
     print(f"Saved: {filename} -> DB updated")
     return filepath
 
-def generate_procedural_images(num_images=5, output_dir="data/synthetic"):
+def generate_procedural_images(num_images=5, output_dir="/tmp/synthetic"):
     """
     Main function used in Streamlit app to generate and return image paths.
     """
