@@ -22,8 +22,7 @@ try:
     SAVE_DIR = "/tmp/synthetic"
     os.makedirs("/tmp/synthetic", exist_ok=True)
 
-    if not os.path.exists(os.path.join(SAVE_DIR, "synthetic_images.db")):
-        init_db()
+    init_db()
 
     st.set_page_config(page_title="Medical Image Augmentor", layout="centered")
     st.success("✅ App booted successfully")
