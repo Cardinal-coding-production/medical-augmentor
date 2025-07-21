@@ -19,13 +19,14 @@ try:
     from generator.procedural.generator import generate_procedural_images
     from generator.gan.gan_generator import generate_gan_images
 
-    SAVE_DIR = "data/synthetic"
-    os.makedirs(SAVE_DIR, exist_ok=True)
+    SAVE_DIR = "/tmp/synthetic"
+    os.makedirs("/tmp/synthetic", exist_ok=True)
 
     if not os.path.exists(os.path.join(SAVE_DIR, "synthetic_images.db")):
         init_db()
 
     st.set_page_config(page_title="Medical Image Augmentor", layout="centered")
+    st.success("✅ App booted successfully")
 
 except Exception as e:
     st.title("🚨 App Startup Failed")

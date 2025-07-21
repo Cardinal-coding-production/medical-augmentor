@@ -12,7 +12,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 os.makedirs("data/synthetic", exist_ok=True)
 
 # Database connection
-DATABASE_URL = "sqlite:///data/synthetic/synthetic_images.db"
+DATABASE_URL = "sqlite:////tmp/synthetic/synthetic_images.db"
 engine = create_engine(DATABASE_URL, echo=True)
 SessionLocal = sessionmaker(bind=engine)
 
