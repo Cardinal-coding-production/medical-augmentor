@@ -27,7 +27,7 @@ try:
     init_db()
 
     st.set_page_config(page_title="Medical Image Augmentor", layout="centered")
-    st.success("✅ App booted successfully")
+
 
 except Exception as e:
     import traceback
