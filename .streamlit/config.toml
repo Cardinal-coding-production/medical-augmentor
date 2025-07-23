@@ -2,8 +2,7 @@
 base = "dark"
 
 [server]
-headless = false
+headless = true
 
 [browser]
-serverAddress = "127.0.0.1"
 gatherUsageStats = false
