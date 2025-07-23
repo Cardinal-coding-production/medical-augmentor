@@ -49,7 +49,10 @@ with st.sidebar:
     3. Preview results and download outputs.
     """)
 
-st.image("assets/logo.jpg", width=150) if os.path.exists("assets/logo.jpg") else st.warning("Logo not found.")
+if os.path.exists("assets/logo.jpg"):
+    st.image("assets/logo.jpg", width=150)
+else:
+    st.warning("Logo not found.")
 st.title("🧠 Cardinal MedAug")
 
 # -------------------------
