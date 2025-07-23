@@ -1,6 +1,8 @@
 import streamlit as st
 import traceback
 
+print("App is starting...")
+
 try:
     import os
     import io
@@ -28,6 +30,8 @@ try:
     st.success("✅ App booted successfully")
 
 except Exception as e:
+    import traceback
+    traceback.print_exc()
     st.title("🚨 App Startup Failed")
     st.error("The app failed to start. Here's the traceback:")
     st.exception(e)
