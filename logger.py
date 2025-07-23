@@ -1,4 +1,5 @@
 from datetime import datetime
+import os
 
 def log_augmentation(rotate, flip_h, flip_v, brightness, contrast, noise):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -13,5 +14,7 @@ def log_augmentation(rotate, flip_h, flip_v, brightness, contrast, noise):
         "noise": noise
     }
 
-    with open("logs.txt", "a") as f:
+    log_dir = "data/synthetic"
+    os.makedirs(log_dir, exist_ok=True)
+    with open(os.path.join(log_dir, "logs.txt"), "a") as f:
         f.write(str(log) + "\n")

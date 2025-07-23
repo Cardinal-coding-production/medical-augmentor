@@ -19,8 +19,8 @@ try:
     from generator.procedural.generator import generate_procedural_images
     from generator.gan.gan_generator import generate_gan_images
 
-    SAVE_DIR = "/tmp/synthetic"
-    os.makedirs("/tmp/synthetic", exist_ok=True)
+    SAVE_DIR = "data/synthetic"
+    os.makedirs(SAVE_DIR, exist_ok=True)
 
     init_db()
 
@@ -45,7 +45,7 @@ with st.sidebar:
     3. Preview results and download outputs.
     """)
 
-st.image("assets/logo.jpg", width=150)
+st.image("assets/logo.jpg", width=150) if os.path.exists("assets/logo.jpg") else st.warning("Logo not found.")
 st.title("🧠 Cardinal MedAug")
 
 # -------------------------
@@ -189,6 +189,8 @@ for r in recent:
     image_path = os.path.join(SAVE_DIR, r.filename)
     if os.path.exists(image_path):
         st.image(image_path, caption=f"{r.generator_type.capitalize()} @ {r.created_at.strftime('%Y-%m-%d %H:%M')}", use_container_width=True)
+    else:
+        st.warning(f"Image file not found: {image_path}")
 
 # -------------------------
 # Feedback + Analytics
